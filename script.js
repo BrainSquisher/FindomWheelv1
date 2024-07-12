@@ -48,21 +48,48 @@ async function connectWallet() {
         console.log('Please install MetaMask!');
     }
 }
-
 async function commit() {
     try {
+        console.log("Starting commit function");
         const tx = await contract.commit();
+        console.log("Commit transaction sent:", tx.hash);
         await tx.wait();
+        console.log("Commit transaction confirmed");
         commitButton.style.display = 'none';
         wheelContainer.style.display = 'block';
     } catch (error) {
         console.error("Error committing:", error);
+        if (error.data) {
+            console.error("Error data:", error.data);
+        }
         result.textContent = "Error committing. Check console for details.";
     }
 }
 
 async function spinWheel() {
     try {
+        console.log("Starting spinWheel function");
+        
+        // Check network
+        const network = await provider.getNetwork();
+        console.log("Current network:", network);
+        if (network.chainId !== 10) { // 10 is Optimism Mainnet
+            throw new Error("Please switch to Optimism Mainnet");
+        }
+
+        // Log contract address and ABI
+        console.log("Contract address:", contractAddress);
+        console.log("Contract ABI:", JSON.stringify(abi));
+
+        // Check if user has committed
+        const userAddress = await signer.getAddress();
+        const commitment = await contract.commitments(userAddress);
+        console.log("User commitment:", commitment);
+
+        if (!commitment.exists) {
+            throw new Error("You must commit before spinning the wheel");
+        }
+
         console.log("Spinning wheel...");
         const tx = await contract.spinWheel();
         console.log("Transaction sent:", tx.hash);
@@ -95,6 +122,8 @@ async function spinWheel() {
         result.textContent = "Error spinning the wheel. Check console for details.";
     }
 }
+
+
 async function checkNetwork() {
     const network = await provider.getNetwork();
     if (network.chainId !== 10) { // 10 is Optimism Mainnet
