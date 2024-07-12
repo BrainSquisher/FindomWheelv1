@@ -196,4 +196,16 @@
             let cooldown = 3600; // 1 hour in seconds
             const cooldownInterval = setInterval(() => {
                 const minutes = Math.floor(cooldown / 60);
-                const seconds = cooldown %
+                const seconds = cooldown % 60;
+                cooldownDiv.textContent = `Next spin available in: ${minutes}m ${seconds}s`;
+                cooldown--;
+                if (cooldown < 0) {
+                    clearInterval(cooldownInterval);
+                    cooldownDiv.textContent = '';
+                    spinWheelBtn.disabled = false;
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
