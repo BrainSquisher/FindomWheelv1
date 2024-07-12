@@ -59,12 +59,20 @@ async function commit() {
 
 async function spinWheel() {
     try {
+        console.log("Spinning wheel...");
         const tx = await contract.spinWheel();
+        console.log("Transaction sent:", tx.hash);
         result.textContent = "Spinning the wheel...";
         wheel.style.transform = `rotate(${Math.random() * 360}deg)`;
         
+        console.log("Waiting for transaction confirmation...");
         const receipt = await tx.wait();
+        console.log("Transaction confirmed:", receipt);
+        
         const event = receipt.events.find(e => e.event === "WheelSpun");
+        if (!event) {
+            throw new Error("WheelSpun event not found in transaction receipt");
+        }
         
         const outcome = event.args.outcome.toNumber();
         const code = event.args.code;
@@ -77,6 +85,9 @@ async function spinWheel() {
         }
     } catch (error) {
         console.error("Error spinning the wheel:", error);
+        if (error.data) {
+            console.error("Error data:", error.data);
+        }
         result.textContent = "Error spinning the wheel. Check console for details.";
     }
 }
