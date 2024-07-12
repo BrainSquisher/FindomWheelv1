@@ -4,20 +4,182 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fortune Wheel</title>
-    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.ethers.io/lib/ethers-5.0.umd.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+            background-color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        #balance, #cooldown {
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body>
-    <div id="app">
+    <div class="container">
         <h1>Fortune Wheel</h1>
-        <button id="connectButton">Connect Wallet</button>
-        <button id="commitButton" style="display: none;">Commit</button>
-        <div id="wheelContainer" style="display: none;">
-            <div id="wheel"></div>
-            <button id="spinButton">Spin the Wheel</button>
-        </div>
+        <button id="connectWallet">Connect Wallet</button>
+        <button id="approveTokens" style="display:none;">Approve Tokens</button>
+        <button id="spinWheel" style="display:none;">Spin the Wheel</button>
+        <div id="balance"></div>
+        <div id="cooldown"></div>
         <div id="result"></div>
     </div>
-    <script src="https://cdn.ethers.io/lib/ethers-5.0.umd.min.js"></script>
-    <script src="script.js"></script>
+
+    <script>
+        const contractAddress = "0x1e3f486767b14096fc64e4e13a36c0241cddca43";
+        const tokenAddress = "0x3C36F2A6E56840ca4a93aDb1B26F6dbD66c5eFb4";
+
+        const fortuneWheelABI = [
+            "function spinWheel() external",
+            "function getContractBalance() external view returns (uint256)",
+            "event WheelSpun(address indexed player, uint8 outcome, uint256 amount)",
+            "event FreeSessionAwarded(address indexed player)"
+        ];
+
+        const tokenABI = [
+            "function approve(address spender, uint256 amount) external returns (bool)",
+            "function allowance(address owner, address spender) external view returns (uint256)",
+            "function balanceOf(address account) external view returns (uint256)"
+        ];
+
+        let provider, signer, fortuneWheel, token;
+
+        const connectWalletBtn = document.getElementById('connectWallet');
+        const approveTokensBtn = document.getElementById('approveTokens');
+        const spinWheelBtn = document.getElementById('spinWheel');
+        const resultDiv = document.getElementById('result');
+        const balanceDiv = document.getElementById('balance');
+        const cooldownDiv = document.getElementById('cooldown');
+
+        connectWalletBtn.onclick = connectWallet;
+        approveTokensBtn.onclick = approveTokens;
+        spinWheelBtn.onclick = spinWheel;
+
+        async function connectWallet() {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    signer = provider.getSigner();
+                    fortuneWheel = new ethers.Contract(contractAddress, fortuneWheelABI, signer);
+                    token = new ethers.Contract(tokenAddress, tokenABI, signer);
+
+                    connectWalletBtn.style.display = 'none';
+                    approveTokensBtn.style.display = 'inline-block';
+                    
+                    updateBalance();
+                    checkAllowance();
+                } catch (error) {
+                    console.error("Failed to connect wallet:", error);
+                    resultDiv.textContent = "Failed to connect wallet. Please try again.";
+                }
+            } else {
+                resultDiv.textContent = "Please install MetaMask to use this dApp.";
+            }
+        }
+
+        async function approveTokens() {
+            try {
+                const tx = await token.approve(contractAddress, ethers.constants.MaxUint256);
+                await tx.wait();
+                approveTokensBtn.style.display = 'none';
+                spinWheelBtn.style.display = 'inline-block';
+                resultDiv.textContent = "Tokens approved successfully!";
+            } catch (error) {
+                console.error("Failed to approve tokens:", error);
+                resultDiv.textContent = "Failed to approve tokens. Please try again.";
+            }
+        }
+
+        async function spinWheel() {
+            try {
+                spinWheelBtn.disabled = true;
+                const tx = await fortuneWheel.spinWheel();
+                resultDiv.textContent = "Spinning the wheel...";
+                const receipt = await tx.wait();
+                
+                const event = receipt.events.find(event => event.event === "WheelSpun" || event.event === "FreeSessionAwarded");
+                if (event.event === "WheelSpun") {
+                    const [player, outcome, amount] = event.args;
+                    const outcomes = ["5€", "10€", "20€", "50€", "Free Session"];
+                    resultDiv.textContent = `You landed on: ${outcomes[outcome]}`;
+                    if (amount.gt(0)) {
+                        resultDiv.textContent += ` and paid ${ethers.utils.formatEther(amount)} tokens`;
+                    }
+                } else if (event.event === "FreeSessionAwarded") {
+                    resultDiv.textContent = "Congratulations! You won a free session!";
+                }
+
+                updateBalance();
+                startCooldown();
+            } catch (error) {
+                console.error("Failed to spin the wheel:", error);
+                resultDiv.textContent = "Failed to spin the wheel. Please try again.";
+                spinWheelBtn.disabled = false;
+            }
+        }
+
+        async function updateBalance() {
+            const balance = await token.balanceOf(await signer.getAddress());
+            balanceDiv.textContent = `Your token balance: ${ethers.utils.formatEther(balance)}`;
+        }
+
+        async function checkAllowance() {
+            const allowance = await token.allowance(await signer.getAddress(), contractAddress);
+            if (allowance.gt(0)) {
+                approveTokensBtn.style.display = 'none';
+                spinWheelBtn.style.display = 'inline-block';
+            }
+        }
+
+        function startCooldown() {
+            let cooldown = 3600; // 1 hour in seconds
+            const cooldownInterval = setInterval(() => {
+                const minutes = Math.floor(cooldown / 60);
+                const seconds = cooldown % 60;
+                cooldownDiv.textContent = `Next spin available in: ${minutes}m ${seconds}s`;
+                cooldown--;
+                if (cooldown < 0) {
+                    clearInterval(cooldownInterval);
+                    cooldownDiv.textContent = '';
+                    spinWheelBtn.disabled = false;
+                }
+            }, 1000);
+        }
+    </script>
 </body>
 </html>
