@@ -36,7 +36,11 @@ async function connectWallet() {
             
             // Approve token spending
             const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, signer);
-            await tokenContract.approve(contractAddress, ethers.constants.MaxUint256);
+            console.log("Approving token spending...");
+            const approveTx = await tokenContract.approve(contractAddress, ethers.constants.MaxUint256);
+            console.log("Approval transaction sent:", approveTx.hash);
+            await approveTx.wait();
+            console.log("Approval confirmed");
         } catch (error) {
             console.error("Failed to connect wallet:", error);
         }
@@ -89,5 +93,12 @@ async function spinWheel() {
             console.error("Error data:", error.data);
         }
         result.textContent = "Error spinning the wheel. Check console for details.";
+    }
+}
+async function checkNetwork() {
+    const network = await provider.getNetwork();
+    if (network.chainId !== 10) { // 10 is Optimism Mainnet
+        alert("Please switch to Optimism Mainnet");
+        throw new Error("Incorrect network");
     }
 }
