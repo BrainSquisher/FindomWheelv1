@@ -60,7 +60,7 @@
     </div>
 
     <script>
-        const contractAddress = "0x1e3f486767b14096fc64e4e13a36c0241cddca43";
+        const contractAddress = "0x5ae438a9f659d13f9e7c6b1ca70b8bb868f3e5aa";
         const tokenAddress = "0x3C36F2A6E56840ca4a93aDb1B26F6dbD66c5eFb4";
 
         const fortuneWheelABI = [
@@ -89,28 +89,38 @@
         approveTokensBtn.onclick = approveTokens;
         spinWheelBtn.onclick = spinWheel;
 
-        async function connectWallet() {
-            if (typeof window.ethereum !== 'undefined') {
-                try {
-                    await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    provider = new ethers.providers.Web3Provider(window.ethereum);
-                    signer = provider.getSigner();
-                    fortuneWheel = new ethers.Contract(contractAddress, fortuneWheelABI, signer);
-                    token = new ethers.Contract(tokenAddress, tokenABI, signer);
-
-                    connectWalletBtn.style.display = 'none';
-                    approveTokensBtn.style.display = 'inline-block';
-                    
-                    updateBalance();
-                    checkAllowance();
-                } catch (error) {
-                    console.error("Failed to connect wallet:", error);
-                    resultDiv.textContent = "Failed to connect wallet. Please try again.";
+    async function connectWallet() {
+        if (typeof window.ethereum !== 'undefined') {
+            try {
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                
+                // Check if we're on the correct network (Optimism)
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                if (chainId !== '0xa') { // '0xa' is hex for 10, Optimism's chain ID
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: '0xa' }],
+                    });
                 }
-            } else {
-                resultDiv.textContent = "Please install MetaMask to use this dApp.";
+    
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                fortuneWheel = new ethers.Contract(contractAddress, fortuneWheelABI, signer);
+                token = new ethers.Contract(tokenAddress, tokenABI, signer);
+    
+                connectWalletBtn.style.display = 'none';
+                approveTokensBtn.style.display = 'inline-block';
+                
+                updateBalance();
+                checkAllowance();
+            } catch (error) {
+                console.error("Failed to connect wallet or switch network:", error);
+                resultDiv.textContent = "Failed to connect to Optimism. Please make sure you have Optimism configured in your wallet.";
             }
+        } else {
+            resultDiv.textContent = "Please install MetaMask and configure it for Optimism to use this dApp.";
         }
+    }
 
         async function approveTokens() {
             try {
