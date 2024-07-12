@@ -1,6 +1,6 @@
 let provider, signer, contract;
-const contractAddress = "YOUR_CONTRACT_ADDRESS_HERE";
-const tokenAddress = "YOUR_TOKEN_ADDRESS_HERE";
+const contractAddress = "0x1e3f486767b14096fc64e4e13a36c0241cddca43";
+const tokenAddress = "0x3C36F2A6E56840ca4a93aDb1B26F6dbD66c5eFb4";
 const abi = [
     "function spinWheel() external",
     "function token() public view returns (address)",
