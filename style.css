@@ -1,0 +1,34 @@
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
+}
+
+#app {
+    text-align: center;
+}
+
+button {
+    margin: 10px;
+    padding: 10px 20px;
+    font-size: 16px;
+}
+
+#wheel {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    margin: 20px auto;
+    background: conic-gradient(
+        #ff6b6b 0deg 72deg, 
+        #feca57 72deg 144deg, 
+        #48dbfb 144deg 216deg, 
+        #ff9ff3 216deg 288deg, 
+        #54a0ff 288deg 360deg
+    );
+    transition: transform 5s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
