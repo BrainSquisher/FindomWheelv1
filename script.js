@@ -2,22 +2,25 @@ let provider, signer, contract;
 const contractAddress = "0x1e3f486767b14096fc64e4e13a36c0241cddca43";
 const tokenAddress = "0x3C36F2A6E56840ca4a93aDb1B26F6dbD66c5eFb4";
 const abi = [
+    "function commit() external",
     "function spinWheel() external",
     "function token() public view returns (address)",
-    "event WheelSpun(address indexed player, uint8 outcome)",
-    "event FreeSessionAwarded(address indexed player)"
+    "event WheelSpun(address indexed player, uint8 outcome, string code)",
+    "event Committed(address indexed player)"
 ];
 const tokenAbi = [
     "function approve(address spender, uint256 amount) external returns (bool)"
 ];
 
 const connectButton = document.getElementById('connectButton');
+const commitButton = document.getElementById('commitButton');
 const spinButton = document.getElementById('spinButton');
 const wheelContainer = document.getElementById('wheelContainer');
 const wheel = document.getElementById('wheel');
 const result = document.getElementById('result');
 
 connectButton.addEventListener('click', connectWallet);
+commitButton.addEventListener('click', commit);
 spinButton.addEventListener('click', spinWheel);
 
 async function connectWallet() {
@@ -29,7 +32,7 @@ async function connectWallet() {
             contract = new ethers.Contract(contractAddress, abi, signer);
             
             connectButton.style.display = 'none';
-            wheelContainer.style.display = 'block';
+            commitButton.style.display = 'block';
             
             // Approve token spending
             const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, signer);
@@ -42,6 +45,18 @@ async function connectWallet() {
     }
 }
 
+async function commit() {
+    try {
+        const tx = await contract.commit();
+        await tx.wait();
+        commitButton.style.display = 'none';
+        wheelContainer.style.display = 'block';
+    } catch (error) {
+        console.error("Error committing:", error);
+        result.textContent = "Error committing. Check console for details.";
+    }
+}
+
 async function spinWheel() {
     try {
         const tx = await contract.spinWheel();
@@ -49,14 +64,16 @@ async function spinWheel() {
         wheel.style.transform = `rotate(${Math.random() * 360}deg)`;
         
         const receipt = await tx.wait();
-        const event = receipt.events.find(e => e.event === "WheelSpun" || e.event === "FreeSessionAwarded");
+        const event = receipt.events.find(e => e.event === "WheelSpun");
         
-        if (event.event === "WheelSpun") {
-            const outcome = event.args.outcome.toNumber();
-            const prizes = ["5€", "10€", "20€", "50€", "Free Session"];
-            result.textContent = `You won: ${prizes[outcome]}`;
+        const outcome = event.args.outcome.toNumber();
+        const code = event.args.code;
+        
+        const prizes = ["0.50€", "1€", "1.50€", "1.50€", "Free Session"];
+        if (outcome === 4) {
+            result.textContent = `Congratulations! You won a Free Session. Your code is: ${code}`;
         } else {
-            result.textContent = "You won a Free Session!";
+            result.textContent = `You won: ${prizes[outcome]}`;
         }
     } catch (error) {
         console.error("Error spinning the wheel:", error);
